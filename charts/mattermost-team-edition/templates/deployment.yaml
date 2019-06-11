@@ -41,6 +41,17 @@ spec:
       {{- if .Values.extraInitContainers }}
       {{- .Values.extraInitContainers | toYaml | nindent 6 }}
       {{- end }}
+      - name: "init-config"
+        image: "busybox:1.25.0"
+        command: [
+            "sh",
+            "-ce",
+            "cp /config-json/config.json /tmp/files/config.json" ]
+        volumeMounts:
+        - name: config-json
+          mountPath: /config-json
+        - name: tmp-files
+          mountPath: /tmp/files
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -69,16 +80,18 @@ spec:
             port: http
         volumeMounts:
         - mountPath: /mattermost/config/config.json
-          name: config-json
+          name: tmp-files
           subPath: config.json
         - mountPath: /mattermost/data
           name: mattermost-data
         resources:
           {{- .Values.resources | toYaml | nindent 12 }}
       volumes:
+      - name: tmp-files
+        EmptyDir: {}
       - name: config-json
-        secret:
-          secretName: {{ include "mattermost-team-edition.fullname" . }}-config-json
+        configMap:
+          name: {{ include "mattermost-team-edition.fullname" . }}-config-json
       - name: mattermost-data
       {{ if .Values.persistence.data.enabled }}
         persistentVolumeClaim:
